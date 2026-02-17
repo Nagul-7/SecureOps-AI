@@ -68,9 +68,6 @@ class ScannerOrchestrator:
     # Tool Runners
     # -------------------------
     def run_bandit(self):
-        """
-        Runs Bandit for Python projects.
-        """
         print("[*] Running Bandit (Python)...")
 
         cmd = [
@@ -90,9 +87,6 @@ class ScannerOrchestrator:
             })
 
     def run_semgrep(self):
-        """
-        Runs Semgrep for NodeJS / Go.
-        """
         print("[*] Running Semgrep (Multi-language)...")
 
         cmd = [
@@ -111,13 +105,64 @@ class ScannerOrchestrator:
             })
 
     def run_trivy(self):
-        """
-        Runs Trivy for Dockerfile scanning.
-        """
         print("[*] Running Trivy (Dockerfile)...")
 
         cmd = [
             "trivy",
             "config",
             "--format",
-            "
+            "json",
+            str(self.target_path)
+        ]
+
+        output = self._execute_command(cmd)
+        if output:
+            self.results.append({
+                "tool": "trivy",
+                "language": "docker",
+                "raw": output
+            })
+
+    def run_checkov(self):
+        print("[*] Running Checkov (Terraform)...")
+
+        cmd = [
+            "checkov",
+            "-d",
+            str(self.target_path),
+            "--output",
+            "json"
+        ]
+
+        output = self._execute_command(cmd)
+        if output:
+            self.results.append({
+                "tool": "checkov",
+                "language": "terraform",
+                "raw": output
+            })
+
+    # -------------------------
+    # Safe Command Execution
+    # -------------------------
+    def _execute_command(self, cmd: List[str]) -> Dict:
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+
+            if result.stdout:
+                return json.loads(result.stdout)
+
+            return None
+
+        except json.JSONDecodeError:
+            print("[!] Failed to parse JSON output.")
+            return None
+
+        except Exception as e:
+            print(f"[!] Scanner execution error: {e}")
+            return None
