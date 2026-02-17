@@ -3,7 +3,7 @@ from typing import List, Dict
 
 class Scorer:
     """
-    Normalizes severities and computes risk score.
+    Normalizes severities and computes risk score + grade.
     """
 
     SEVERITY_MAP = {
@@ -33,6 +33,18 @@ class Scorer:
 
         return "LOW"
 
+    def calculate_grade(self, score: float) -> str:
+        if score <= 2:
+            return "A"
+        elif score <= 4:
+            return "B"
+        elif score <= 6:
+            return "C"
+        elif score <= 8:
+            return "D"
+        else:
+            return "F"
+
     def score(self) -> Dict:
         total = len(self.findings)
 
@@ -40,7 +52,8 @@ class Scorer:
             return {
                 "total_findings": 0,
                 "severity_breakdown": {},
-                "risk_score": 0
+                "risk_score": 0,
+                "risk_grade": "A"
             }
 
         breakdown = {
@@ -60,10 +73,11 @@ class Scorer:
             total_weight += self.SEVERITY_MAP[normalized]
 
         risk_score = round(total_weight / total, 2)
+        risk_grade = self.calculate_grade(risk_score)
 
         return {
             "total_findings": total,
             "severity_breakdown": breakdown,
-            "risk_score": risk_score
+            "risk_score": risk_score,
+            "risk_grade": risk_grade
         }
-
