@@ -4,19 +4,27 @@ from secureops.scanner import ScannerOrchestrator
 from secureops.parser import Parser
 from secureops.scorer import Scorer
 from secureops.reporter import Reporter
+from secureops.analyzer import Analyzer
+from secureops.fixer import Fixer
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="SecureOps AI - Local DevSecOps Security Scanner"
     )
+
     parser.add_argument(
         "path",
         help="Path to target project directory"
     )
 
-    args = parser.parse_args()
+    parser.add_argument(
+        "--auto-fix",
+        action="store_true",
+        help="Automatically apply safe fixes"
+    )
 
+    args = parser.parse_args()
     target_path = args.path
 
     # -------------------------
@@ -42,11 +50,25 @@ def main():
     score_data = Scorer(parsed).score()
 
     # -------------------------
-    # Report
+    # Analyze Findings
     # -------------------------
-    reporter = Reporter(parsed, score_data, tools_used)
+    analyzed = Analyzer(parsed).analyze()
+
+    # -------------------------
+    # Reporting
+    # -------------------------
+    reporter = Reporter(analyzed, score_data, tools_used)
     reporter.print_summary()
     reporter.save_json_report()
+
+    # -------------------------
+    # Optional Auto Fix
+    # -------------------------
+    if args.auto_fix:
+        print("\n[*] Auto-fix mode enabled.")
+        Fixer(analyzed).apply_fixes()
+    else:
+        print("\n[*] Run with --auto-fix to apply safe fixes.")
 
 
 if __name__ == "__main__":
