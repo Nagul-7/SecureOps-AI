@@ -2,75 +2,92 @@ import shutil
 import difflib
 from pathlib import Path
 from typing import List, Dict
+from datetime import datetime
 
 
 class Fixer:
     """
-    Applies safe structured fixes based on analyzer output.
+    Hardened structured auto-fix engine.
+    - Groups fixes per file
+    - Single backup per file
+    - Diff preview before apply
+    - Tracks statistics
     """
 
     def __init__(self, findings: List[Dict]):
         self.findings = findings
+        self.stats = {
+            "auto_fixable": 0,
+            "files_modified": 0,
+            "fixes_applied": 0,
+            "fixes_skipped": 0
+        }
 
     def apply_fixes(self):
-        applicable = [f for f in self.findings if f.get("auto_fix_possible")]
+        file_map = {}
 
-        if not applicable:
+        for f in self.findings:
+            if f.get("auto_fix_possible"):
+                self.stats["auto_fixable"] += 1
+                file_map.setdefault(f["file"], []).append(f)
+
+        if not file_map:
             print("No auto-fixable issues found.")
             return
 
-        for finding in applicable:
-            self._fix_finding(finding)
+        for file_path, issues in file_map.items():
+            self._process_file(file_path, issues)
+
+        self._print_stats()
 
     # --------------------------------------------------
-    # Core Fix Logic
+    # Process Per File
     # --------------------------------------------------
 
-    def _fix_finding(self, finding: Dict):
-        file_path = Path(finding["file"])
+    def _process_file(self, file_path: str, issues: List[Dict]):
+        path = Path(file_path)
 
-        if not file_path.exists():
+        if not path.exists():
             print(f"[!] File not found: {file_path}")
             return
 
-        original_lines = file_path.read_text().splitlines()
+        original_lines = path.read_text().splitlines()
         modified_lines = original_lines.copy()
 
-        line_index = finding["line"] - 1
-        issue_text = finding["issue"].lower()
+        modified = False
 
-        if line_index < 0 or line_index >= len(original_lines):
-            print("[!] Invalid line number.")
+        for issue in issues:
+            line_index = issue["line"] - 1
+            issue_text = issue["issue"].lower()
+
+            if line_index < 0 or line_index >= len(modified_lines):
+                continue
+
+            original_line = modified_lines[line_index]
+            new_line = original_line
+
+            # Hardcoded secret
+            if "hardcoded" in issue_text or "password" in issue_text:
+                new_line = 'password = os.getenv("PASSWORD")'
+
+            # subprocess shell=True
+            elif "shell=true" in issue_text or "subprocess" in issue_text:
+                new_line = original_line.replace("shell=True", "shell=False")
+
+            # debug mode
+            elif "debug" in issue_text:
+                new_line = original_line.replace("debug=True", "debug=False")
+
+            if new_line != original_line:
+                modified_lines[line_index] = new_line
+                modified = True
+                self.stats["fixes_applied"] += 1
+            else:
+                self.stats["fixes_skipped"] += 1
+
+        if not modified:
             return
 
-        original_line = original_lines[line_index]
-        modified_line = original_line
-
-        # -------------------------
-        # Hardcoded Secret Fix
-        # -------------------------
-        if "hardcoded" in issue_text or "password" in issue_text:
-            modified_line = 'password = os.getenv("PASSWORD")'
-
-        # -------------------------
-        # subprocess shell=True Fix
-        # -------------------------
-        elif "shell=true" in issue_text or "subprocess" in issue_text:
-            modified_line = original_line.replace("shell=True", "shell=False")
-
-        # -------------------------
-        # Debug Mode Fix
-        # -------------------------
-        elif "debug" in issue_text:
-            modified_line = original_line.replace("debug=True", "debug=False")
-
-        if modified_line == original_line:
-            print("[*] No safe modification pattern matched.")
-            return
-
-        modified_lines[line_index] = modified_line
-
-        # Show diff
         diff = difflib.unified_diff(
             original_lines,
             modified_lines,
@@ -81,17 +98,31 @@ class Fixer:
 
         print("\n".join(diff))
 
-        confirm = input("Apply this fix? (Y/N): ").strip().lower()
+        confirm = input("Apply these fixes? (Y/N): ").strip().lower()
 
         if confirm != "y":
-            print("Skipped.")
+            print("Skipped file.")
+            self.stats["fixes_skipped"] += 1
             return
 
-        # Backup
-        backup_path = file_path.with_suffix(file_path.suffix + ".bak")
-        shutil.copy(file_path, backup_path)
-        print(f"[+] Backup created: {backup_path}")
+        # Unique timestamped backup
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        backup_path = path.with_suffix(path.suffix + f".bak_{timestamp}")
+        shutil.copy(path, backup_path)
 
-        # Write changes
-        file_path.write_text("\n".join(modified_lines))
-        print(f"[+] Fix applied to {file_path}")
+        path.write_text("\n".join(modified_lines))
+
+        print(f"[+] Backup created: {backup_path}")
+        print(f"[+] Fixes applied to {file_path}")
+
+        self.stats["files_modified"] += 1
+
+    # --------------------------------------------------
+    # Stats
+    # --------------------------------------------------
+
+    def _print_stats(self):
+        print("\n========== Fix Summary ==========")
+        for k, v in self.stats.items():
+            print(f"{k.replace('_',' ').title():<20}: {v}")
+        print("=================================\n")
