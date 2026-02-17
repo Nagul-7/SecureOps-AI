@@ -8,22 +8,26 @@ from typing import List, Dict
 class ScannerOrchestrator:
     """
     Orchestrates language detection and routes to appropriate security scanners.
+    Tracks metadata for reporting.
     """
 
     def __init__(self, target_path: str):
         self.target_path = Path(target_path).resolve()
         self.detected_languages = set()
         self.results = []
+        self.files_scanned = 0
 
     # -------------------------
     # Language Detection
     # -------------------------
     def detect_languages(self) -> List[str]:
         """
-        Detects project languages based on file patterns.
+        Detects project languages and counts scanned files.
         """
         for root, dirs, files in os.walk(self.target_path):
             for file in files:
+                self.files_scanned += 1
+
                 if file.endswith(".py"):
                     self.detected_languages.add("python")
 
@@ -45,9 +49,6 @@ class ScannerOrchestrator:
     # Scanner Routing
     # -------------------------
     def run(self) -> List[Dict]:
-        """
-        Main execution method.
-        """
         languages = self.detect_languages()
 
         if "python" in languages:
@@ -141,6 +142,15 @@ class ScannerOrchestrator:
                 "language": "terraform",
                 "raw": output
             })
+
+    # -------------------------
+    # Metadata Getter
+    # -------------------------
+    def get_metadata(self) -> Dict:
+        return {
+            "languages_detected": list(self.detected_languages),
+            "files_scanned": self.files_scanned
+        }
 
     # -------------------------
     # Safe Command Execution
