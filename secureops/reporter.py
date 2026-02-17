@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Dict
 
 
@@ -16,9 +16,6 @@ class Reporter:
         self.report_dir = Path("reports")
         self.report_dir.mkdir(exist_ok=True)
 
-    # -------------------------
-    # Terminal Summary
-    # -------------------------
     def print_summary(self):
         print("\n========== SecureOps AI Report ==========")
         print(f"Total Findings : {self.score_data['total_findings']}")
@@ -36,11 +33,8 @@ class Reporter:
         print(f"  Duration (s)  : {self.metadata.get('duration_seconds')}")
         print("=========================================\n")
 
-    # -------------------------
-    # JSON Report
-    # -------------------------
     def save_json_report(self) -> str:
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
         report_data = {
             "schema_version": "2.0",
@@ -58,3 +52,4 @@ class Reporter:
         print(f"[+] Report saved to {report_path}")
 
         return str(report_path)
+

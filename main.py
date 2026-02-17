@@ -1,7 +1,7 @@
 import argparse
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, UTC
 
 from secureops.scanner import ScannerOrchestrator
 from secureops.parser import Parser
@@ -30,7 +30,7 @@ def main():
     args = parser.parse_args()
     target_path = args.path
 
-    scan_start_time = datetime.utcnow()
+    scan_start_time = datetime.now(UTC)
     start_timer = time.time()
 
     # -------------------------
@@ -60,7 +60,7 @@ def main():
     # -------------------------
     analyzed = Analyzer(parsed).analyze()
 
-    scan_end_time = datetime.utcnow()
+    scan_end_time = datetime.now(UTC)
     duration = round(time.time() - start_timer, 2)
 
     metadata = orchestrator.get_metadata()
