@@ -1,5 +1,8 @@
 import argparse
 import sys
+import time
+from datetime import datetime
+
 from secureops.scanner import ScannerOrchestrator
 from secureops.parser import Parser
 from secureops.scorer import Scorer
@@ -26,6 +29,9 @@ def main():
 
     args = parser.parse_args()
     target_path = args.path
+
+    scan_start_time = datetime.utcnow()
+    start_timer = time.time()
 
     # -------------------------
     # Run Scanners
@@ -54,10 +60,21 @@ def main():
     # -------------------------
     analyzed = Analyzer(parsed).analyze()
 
+    scan_end_time = datetime.utcnow()
+    duration = round(time.time() - start_timer, 2)
+
+    metadata = orchestrator.get_metadata()
+    metadata.update({
+        "scan_started_at": scan_start_time.isoformat(),
+        "scan_completed_at": scan_end_time.isoformat(),
+        "duration_seconds": duration,
+        "tools_used": tools_used
+    })
+
     # -------------------------
     # Reporting
     # -------------------------
-    reporter = Reporter(analyzed, score_data, tools_used)
+    reporter = Reporter(analyzed, score_data, metadata)
     reporter.print_summary()
     reporter.save_json_report()
 

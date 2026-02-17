@@ -9,10 +9,10 @@ class Reporter:
     Handles terminal output and JSON report generation.
     """
 
-    def __init__(self, findings: List[Dict], score_data: Dict, tools_used: List[str]):
+    def __init__(self, findings: List[Dict], score_data: Dict, metadata: Dict):
         self.findings = findings
         self.score_data = score_data
-        self.tools_used = tools_used
+        self.metadata = metadata
         self.report_dir = Path("reports")
         self.report_dir.mkdir(exist_ok=True)
 
@@ -29,7 +29,11 @@ class Reporter:
 
         print(f"Risk Score      : {self.score_data['risk_score']}")
         print(f"Risk Grade      : {self.score_data['risk_grade']}")
-        print(f"Tools Used      : {', '.join(self.tools_used)}")
+
+        print("\nScan Metadata:")
+        print(f"  Files Scanned : {self.metadata.get('files_scanned')}")
+        print(f"  Languages     : {', '.join(self.metadata.get('languages_detected', []))}")
+        print(f"  Duration (s)  : {self.metadata.get('duration_seconds')}")
         print("=========================================\n")
 
     # -------------------------
@@ -39,8 +43,9 @@ class Reporter:
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
         report_data = {
+            "schema_version": "2.0",
             "generated_at": timestamp,
-            "tools_used": self.tools_used,
+            "metadata": self.metadata,
             "summary": self.score_data,
             "findings": self.findings
         }
